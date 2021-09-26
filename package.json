@@ -10,14 +10,23 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:vscode-hledger-extra.helloWorld"
+        "onLanguage:hledger"
     ],
     "main": "./out/extension.js",
     "contributes": {
-        "commands": [
+        "configuration": [
             {
-                "command": "vscode-hledger-extra.helloWorld",
-                "title": "Hello World"
+                "title": "Hledger Extra",
+                "properties": {
+                    "hledger-extra.hledgerPath": {
+                        "type": "string",
+                        "default":"hledger"
+                    },
+                    "hledger-extra.ledgerFile": {
+                        "type": "string",
+                        "description": "Default: $LEDGER_FILE or $HOME/.hledger.journal"
+                    }
+                }
             }
         ]
     },

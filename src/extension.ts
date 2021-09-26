@@ -1,32 +1,47 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
+import { exec as execOriginal } from "child_process";
+import { promisify } from "util";
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
+const exec = promisify(execOriginal);
+
+const extensionName = "hledger-extra";
+
 export function activate(context: vscode.ExtensionContext) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
-  console.log(
-    'Congratulations, your extension "vscode-hledger-extra" is now active!'
-  );
+  const accountAutocompleteProviderSubscription =
+    vscode.languages.registerCompletionItemProvider("hledger", {
+      async provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+      ) {
+        const text = document.lineAt(position).text;
+        if (text.match(/^\s/)) {
+          // Do not provide account name completions if the line is not indented.
+          return;
+        }
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with registerCommand
-  // The commandId parameter must match the command field in package.json
-  let disposable = vscode.commands.registerCommand(
-    "vscode-hledger-extra.helloWorld",
-    () => {
-      // The code you place here will be executed every time your command is executed
-      // Display a message box to the user
-      vscode.window.showInformationMessage(
-        "Hello World from vscode-hledger-extra!"
-      );
-    }
-  );
+        const configuration = vscode.workspace.getConfiguration();
+        const hledgerPath = configuration.get(
+          `${extensionName}.hledgerPath`,
+          "hledger"
+        );
+        const ledgerFile = configuration.get(`${extensionName}.ledgerFile`, "");
 
-  context.subscriptions.push(disposable);
+        const env = process.env;
+        if (ledgerFile) {
+          env.LEDGER_FILE = ledgerFile;
+        }
+        const { stdout } = await exec(`"${hledgerPath}" accounts`, { env });
+        const accountNames = stdout
+          .split("\n")
+          .map((x) => x.trim())
+          .filter((x) => x);
+
+        return accountNames.map((x) => new vscode.CompletionItem(x));
+      },
+    });
+  context.subscriptions.push(accountAutocompleteProviderSubscription);
 }
 
-// this method is called when your extension is deactivated
 export function deactivate() {}
